@@ -31,31 +31,41 @@ styles <- "
 
 # Shiny UI
 ui <- fluidPage(
-  titlePanel("Cross-Team Product Roadmap"),
+  #titlePanel("Cross-Team Product Roadmap"),
   
-  sidebarLayout(
+  #sidebarLayout(
     
-    sidebarPanel(
+    #sidebarPanel(
       #define input selector
-      checkboxGroupInput("group", "Select Product Team(s):",
+      #checkboxGroupInput("group", "Select Product Team(s):",
                          c("Team 1" = "team_1",
                            "Team 2" = "team_2",
                            "Team 3" = "team_3",
                            "Team 4" = "team_4",
                            "Team 5" = "team_5",
                            "Team 6" = "team_6"))
-    ),
+    #),
     
-    mainPanel(
+    #mainPanel(
       
       #set CSS style
-      tags$style(styles, type="text/css"),
+      #tags$style(styles, type="text/css"),
       
       #output timeline
-      timevisOutput("timeline")
-    )
-  )
-
+      #timevisOutput("timeline")
+    #)
+  #)
+  fluidRow(
+        column(
+          12,
+          div(id = "saveActions",
+                  class = "optionsSection",
+                  tags$h4("Actions:"),
+                  textInput("prefix", "Prefix"),
+                  actionButton("save", "Save changes"),
+                  actionButton("changed", "Changed!"),
+          )
+        )
 )
 
 server <- function(input, output, session) {
