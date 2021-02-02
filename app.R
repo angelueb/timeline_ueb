@@ -1,10 +1,4 @@
-### Interactive Product Roadmap
-### Stephen Howe
-### August 15, 2019
 
-### This RShiny app generates an interactive, JavaScript-based timeline
-### in which to view the roadmap for multiple teams.
-### Data is sourced from the Excel spreadsheet referenced in the code.
 
 #libraries ----
 library(timevis)  # timeline visualization
@@ -15,16 +9,63 @@ library(shinyjs)
 library(googledrive)
 library(googlesheets4)
 
-#define CSS styles for roadmap
+#Some helper code
+
+randomID <- function() {
+  paste(sample(c(letters, LETTERS, 0:9), 16, replace = TRUE), collapse = "")
+}
+
+#define CSS styles
 styles <- "
-.vis-item.EL { background-color: MidnightBlue; color: White; }
-.vis-item.ELUA { background-color: SteelBlue; color: White; }
-.vis-item.UA { background-color: MediumBlue; color: White; }
+.vis-item.EL { background-color: Gold; color: White; }
+.vis-item.ELUA { background-color: #CD212A; color: White; }
+.vis-item.UA { background-color: #00A170; color: White; }
 .vis-item.milestones { background-color: DarkOrange; color: White; }
 
-.vis-labelset .vis-label.milestones { color: Black; }
-.vis-labelset .vis-label.EL { color: Black; }
-.vis-labelset .vis-label.UA { color: Black; }"
+.vis-labelset .vis-label.milestones { color: Black; font-size: 0.9em; }
+.vis-labelset .vis-label.EL { background: Gold; color: Black; font-size: 0.9em; font-weight: bold}
+.vis-labelset .vis-label.ELUA { background: #CD212A; color: Black; font-size: 0.75em; font-weight: bold}
+.vis-labelset .vis-label.UA { background: #00A170; color: Black; font-size: 0.9em; font-weight: bold}
+
+.optionsSection {
+  border: 1px solid #EEE;
+  border-radius: 3px;
+  background: #FCFCFC;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+#timeline {
+  box-shadow: 0px 0px 3px #444;
+}
+
+#timeline .vis-item {
+  #border-color: #F991A3;
+  #background-color: pink;
+  #font-size: 15pt;
+  #color: purple;
+  box-shadow: 3px 3px 5px rgba(100,100,100, 0.6);
+}
+
+#timeline .vis-timeline {
+  border: 1px solid;
+  font-size: 12pt;
+  background: white;
+}
+
+#timeline .vis-background .vis-minor.vis-odd {
+  background: #e7e5e4;
+}
+
+#timeline .vis-time-axis .vis-grid.vis-minor {
+  border-width: 2px;
+  border-color: #e7e5e4;
+}
+
+#timeline .vis-time-axis .vis-grid.vis-major {
+  border-width: 2px;
+  border-color: Black;
+}"
 
 # Shiny UI
 ui <- fluidPage(
@@ -52,27 +93,10 @@ ui <- fluidPage(
       #timevisOutput("timeline")
     #)
   #)
+
   fluidRow(
-        column(
-          12,
-          div(id = "Action_label",
-                  class = "optionsSection",
-                  tags$h4("Actions:")
-                  
-          )
-        )
-  ),
-  fluidRow(
-        column(
-          3,
-          div(id = "prefix_div",
-                  class = "optionsSection",
-                  textInput("prefix", "Prefix")
-                  
-          )
-        ),
         column(style="display: inline-block;vertical-align:bottom;",
-          3,
+          2,
           div(id = "saveActions",
                   class = "optionsSection",
                   disabled(actionButton("save", "Save changes"))
@@ -81,7 +105,28 @@ ui <- fluidPage(
           )
         )
   ),
-  fluidRow(column(12,
+  fluidRow(
+
+          column(
+              2,
+              div(class = "optionsSection",
+                  tags$h4("Add Entry:"),
+                  textInput("addTitle", "Add Title:", "New Title"),
+                  textInput("addText", "Add Content:", "New item"),
+                  dateInput("addLDate", NULL, "2021-01-01"),
+                  dateInput("addRDate", NULL, "2021-01-03"),
+                  selectInput("addGroup", "Group:", c("EOSC-Life" = "EL", "EOS-Life + UEB Admin" = "ELUA", "UEB Admin" = "UA")),
+                  actionButton("addBtn", "Add")
+              ),
+              div(id = "interactiveActions",
+                  class = "optionsSection",
+                  tags$h4("More Actions:"),
+                  actionButton("fit", "Fit all items"),
+                  actionButton("center", "Center around Today")
+              )
+          ),
+
+          column(10,
             timevisOutput("timeline")
           ))
 )
@@ -126,10 +171,29 @@ observeEvent(y(), {
             #groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
     config <- list(
       editable = TRUE,
-      multiselect = TRUE
+      #multiselect = TRUE
+      orientation = 'top'
     )
     timevis(data = data, 
             groups = groups, options = config)
+  })
+
+  #Add item event
+  observeEvent(input$addBtn, {
+    addItem("timeline",
+            data = list(id = randomID(),
+                        content = input$addText,
+                        start = input$addLDate,
+                        end = input$addRDate,
+                        group = input$addGroup,
+                        className = input$addGroup,
+                        title = input$addTitle))
+  })
+  observeEvent(input$fit, {
+    fitWindow("timeline")
+  })
+  observeEvent(input$center, {
+    centerTime("timeline", format(Sys.Date(), format="%Y-%m-%d"))
   })
 
   observeEvent(input$save, {
