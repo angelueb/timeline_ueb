@@ -9,25 +9,20 @@
 #libraries ----
 library(timevis)  # timeline visualization
 library(readxl)  # read Excel data
+library(xlsx)
 library(shiny)  # build Shiny app
+library(shinyjs)
 
 #define CSS styles for roadmap
 styles <- "
+.vis-item.EL { background-color: MidnightBlue; color: White; }
+.vis-item.ELUA { background-color: SteelBlue; color: White; }
+.vis-item.UA { background-color: MediumBlue; color: White; }
 .vis-item.milestones { background-color: DarkOrange; color: White; }
-.vis-item.team_1 { background-color: MidnightBlue; color: White; }
-.vis-item.team_2 { background-color: SteelBlue; color: White; }
-.vis-item.team_3 { background-color: MediumBlue; color: White; }
-.vis-item.team_4 { background-color: CornflowerBlue; }
-.vis-item.team_5 { background-color: SkyBlue; }
-.vis-item.team_6 { background-color: PowderBlue; }
 
 .vis-labelset .vis-label.milestones { color: Black; }
-.vis-labelset .vis-label.team_1 { color: Black; }
-.vis-labelset .vis-label.team_2 { color: Black; }
-.vis-labelset .vis-label.team_3 { color: Black; }
-.vis-labelset .vis-label.team_4 { color: Black; }
-.vis-labelset .vis-label.team_5 { color: Black; }
-.vis-labelset .vis-label.team_6 { color: Black; }"
+.vis-labelset .vis-label.EL { color: Black; }
+.vis-labelset .vis-label.UA { color: Black; }"
 
 # Shiny UI
 ui <- fluidPage(
@@ -38,18 +33,18 @@ ui <- fluidPage(
     #sidebarPanel(
       #define input selector
       #checkboxGroupInput("group", "Select Product Team(s):",
-                         c("Team 1" = "team_1",
-                           "Team 2" = "team_2",
-                           "Team 3" = "team_3",
-                           "Team 4" = "team_4",
-                           "Team 5" = "team_5",
-                           "Team 6" = "team_6"))
+       #                  c("Team 1" = "team_1",
+       #                    "Team 2" = "team_2",
+       #                    "Team 3" = "team_3",
+       #                    "Team 4" = "team_4",
+       #                    "Team 5" = "team_5",
+       #                    "Team 6" = "team_6"))
     #),
     
     #mainPanel(
       
       #set CSS style
-      #tags$style(styles, type="text/css"),
+      tags$style(styles, type="text/css"),
       
       #output timeline
       #timevisOutput("timeline")
@@ -58,31 +53,72 @@ ui <- fluidPage(
   fluidRow(
         column(
           12,
-          div(id = "saveActions",
+          div(id = "Action_label",
                   class = "optionsSection",
-                  tags$h4("Actions:"),
-                  textInput("prefix", "Prefix"),
-                  actionButton("save", "Save changes"),
-                  actionButton("changed", "Changed!"),
+                  tags$h4("Actions:")
+                  
           )
         )
+  ),
+  fluidRow(
+        column(
+          3,
+          div(id = "prefix_div",
+                  class = "optionsSection",
+                  textInput("prefix", "Prefix")
+                  
+          )
+        ),
+        column(style="display: inline-block;vertical-align:bottom;",
+          3,
+          div(id = "saveActions",
+                  class = "optionsSection",
+                  disabled(actionButton("save", "Save changes"))
+                  #actionButton("save", "Save changes")
+                  #actionButton("changed", "Changed!")
+          )
+        )
+  ),
+  fluidRow(column(12,
+            timevisOutput("timeline")
+          ))
 )
 
 server <- function(input, output, session) {
   #get data
-  epics <- read_excel(path ="product_roadmap.xlsx",
-                         sheet = "Epics")
-  milestones <- read_excel(path = "product_roadmap.xlsx",
+  ranged <- read_excel(path ="timelineUEB_1612264248.xlsx",
+                         sheet = "Ranged")
+  milestones <- read_excel(path = "timelineUEB_1612264248.xlsx",
                            sheet = "Milestones")
-  groups <- read_excel(path ="product_roadmap.xlsx",
+  groups <- read_excel(path ="timelineUEB_1612264248.xlsx",
                        sheet = "Groups")
   
-  data = rbind(epics, milestones)
+  data = rbind(ranged, milestones)
+
+  y <- reactiveVal(data)
+observeEvent(y(), {
+  enable("save")
+})
+
+observeEvent(input$save, {
+    milestones = data[which(data$className == "milestones"), ]
+    ranged = data[which(data$className != "milestones"), ]
+    xlsfname <- paste0('timelineUEB_',as.integer(Sys.time()),".xlsx")
+    oldOpt <- options()
+    options(xlsx.date.format="yyyy-MMM-dd")
+    write.xlsx(as.data.frame(ranged), xlsfname, sheetName="Ranged", col.names=TRUE, row.names=FALSE, append=FALSE, showNA=FALSE)
+    write.xlsx(as.data.frame(milestones), xlsfname, sheetName="Milestones", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
+    write.xlsx(as.data.frame(groups), xlsfname, sheetName="Groups", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
+    options(oldOpt)
+    #disable("save")
+  })
   
   #create timeline output
   output$timeline <- renderTimevis({
-    timevis(data = subset(data, data$group %in% input$group | data$group == "milestones"), 
-            groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
+    #timevis(data = subset(data, data$group %in% input$group | data$group == "milestones"), 
+            #groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
+    timevis(data = data, 
+            groups = groups)
   })
 }
 
