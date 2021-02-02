@@ -118,9 +118,23 @@ observeEvent(y(), {
   enable("save")
 })
 
-observeEvent(input$save, {
-    milestones = data[which(data$className == "milestones"), ]
-    ranged = data[which(data$className != "milestones"), ]
+
+  
+  #create timeline output
+  output$timeline <- renderTimevis({
+    #timevis(data = subset(data, data$group %in% input$group | data$group == "milestones"), 
+            #groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
+    config <- list(
+      editable = TRUE,
+      multiselect = TRUE
+    )
+    timevis(data = data, 
+            groups = groups, options = config)
+  })
+
+  observeEvent(input$save, {
+    milestones = input$timeline_data[which(input$timeline_data$className == "milestones"), ]
+    ranged = input$timeline_data[which(input$timeline_data$className != "milestones"), ]
     
     #Write using xlsx
     #xlsfname <- paste0('timelineUEB_',as.integer(Sys.time()),".xlsx")
@@ -136,14 +150,6 @@ observeEvent(input$save, {
     write_sheet(as.data.frame(ranged), ss, sheet = "Ranged")
     write_sheet(as.data.frame(milestones), ss, sheet = "Milestones")
     write_sheet(as.data.frame(groups), ss, sheet = "Groups")
-  })
-  
-  #create timeline output
-  output$timeline <- renderTimevis({
-    #timevis(data = subset(data, data$group %in% input$group | data$group == "milestones"), 
-            #groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
-    timevis(data = data, 
-            groups = groups)
   })
 }
 
