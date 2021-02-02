@@ -12,6 +12,8 @@ library(readxl)  # read Excel data
 library(xlsx)
 library(shiny)  # build Shiny app
 library(shinyjs)
+library(googledrive)
+library(googlesheets4)
 
 #define CSS styles for roadmap
 styles <- "
@@ -86,12 +88,28 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   #get data
-  ranged <- read_excel(path ="timelineUEB_1612264248.xlsx",
-                         sheet = "Ranged")
-  milestones <- read_excel(path = "timelineUEB_1612264248.xlsx",
-                           sheet = "Milestones")
-  groups <- read_excel(path ="timelineUEB_1612264248.xlsx",
-                       sheet = "Groups")
+  #ranged <- read_excel(path ="timelineUEB_1612264248.xlsx",
+                         #sheet = "Ranged")
+  #milestones <- read_excel(path = "timelineUEB_1612264248.xlsx",
+                           #sheet = "Milestones")
+  #groups <- read_excel(path ="timelineUEB_1612264248.xlsx",
+                       #sheet = "Groups")
+
+  #trying auth with Google
+  options(gargle_oauth_cache = "config")
+  #options(gargle_quiet = FALSE)
+  drive_auth(cache = "config", email = "angelskunkworks@gmail.com")
+  sheets_auth(token = drive_token())
+
+
+  #goooglesheets4 inputs
+  ss <- '1zwX6k60yTzolEqOhD61384TAERmqTy1BLRLNzpGksmU'
+
+  ranged <- read_sheet(ss, sheet = 'Ranged')
+  milestones <- read_sheet(ss, sheet = 'Milestones')
+  groups <- read_sheet(ss, sheet = 'Groups')
+  
+
   
   data = rbind(ranged, milestones)
 
@@ -103,14 +121,21 @@ observeEvent(y(), {
 observeEvent(input$save, {
     milestones = data[which(data$className == "milestones"), ]
     ranged = data[which(data$className != "milestones"), ]
-    xlsfname <- paste0('timelineUEB_',as.integer(Sys.time()),".xlsx")
-    oldOpt <- options()
-    options(xlsx.date.format="yyyy-MMM-dd")
-    write.xlsx(as.data.frame(ranged), xlsfname, sheetName="Ranged", col.names=TRUE, row.names=FALSE, append=FALSE, showNA=FALSE)
-    write.xlsx(as.data.frame(milestones), xlsfname, sheetName="Milestones", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
-    write.xlsx(as.data.frame(groups), xlsfname, sheetName="Groups", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
-    options(oldOpt)
+    
+    #Write using xlsx
+    #xlsfname <- paste0('timelineUEB_',as.integer(Sys.time()),".xlsx")
+    #oldOpt <- options()
+    #options(xlsx.date.format="yyyy-MMM-dd")
+    #write.xlsx(as.data.frame(ranged), xlsfname, sheetName="Ranged", col.names=TRUE, row.names=FALSE, append=FALSE, showNA=FALSE)
+    #write.xlsx(as.data.frame(milestones), xlsfname, sheetName="Milestones", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
+    #write.xlsx(as.data.frame(groups), xlsfname, sheetName="Groups", col.names=TRUE, row.names=FALSE, append=TRUE, showNA=FALSE)
+    #options(oldOpt)
     #disable("save")
+
+    #Write using googlesheets4
+    write_sheet(as.data.frame(ranged), ss, sheet = "Ranged")
+    write_sheet(as.data.frame(milestones), ss, sheet = "Milestones")
+    write_sheet(as.data.frame(groups), ss, sheet = "Groups")
   })
   
   #create timeline output
