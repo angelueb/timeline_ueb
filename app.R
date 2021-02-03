@@ -17,15 +17,15 @@ randomID <- function() {
 
 #define CSS styles
 styles <- "
-.vis-item.EL { background-color: Gold; color: White; }
-.vis-item.ELUA { background-color: #CD212A; color: White; }
-.vis-item.UA { background-color: #00A170; color: White; }
+.vis-item.EL { background-color: #ffbf00; color: White; border-color: #ffbf00; }
+.vis-item.ELUA { background-color: #CD212A; color: White; border-color: #CD212A; }
+.vis-item.UA { background-color: #00A170; color: White; border-color: #00A170; }
 .vis-item.milestones { background-color: DarkOrange; color: White; }
 
 .vis-labelset .vis-label.milestones { color: Black; font-size: 0.9em; }
-.vis-labelset .vis-label.EL { background: Gold; color: Black; font-size: 0.9em; font-weight: bold}
-.vis-labelset .vis-label.ELUA { background: #CD212A; color: Black; font-size: 0.75em; font-weight: bold}
-.vis-labelset .vis-label.UA { background: #00A170; color: Black; font-size: 0.9em; font-weight: bold}
+.vis-labelset .vis-label.EL { background: White; color: #ffbf00; font-size: 0.9em; font-weight: bold}
+.vis-labelset .vis-label.ELUA { background: White; color: #CD212A; font-size: 0.75em; font-weight: bold}
+.vis-labelset .vis-label.UA { background: White; color: #00A170; font-size: 0.9em; font-weight: bold}
 
 .optionsSection {
   border: 1px solid #EEE;
@@ -36,25 +36,24 @@ styles <- "
 }
 
 #timeline {
-  box-shadow: 0px 0px 3px #444;
+  
 }
 
 #timeline .vis-item {
-  #border-color: #F991A3;
-  #background-color: pink;
-  #font-size: 15pt;
-  #color: purple;
   box-shadow: 3px 3px 5px rgba(100,100,100, 0.6);
 }
 
 #timeline .vis-timeline {
   border: 1px solid;
   font-size: 12pt;
-  background: white;
 }
 
 #timeline .vis-background .vis-minor.vis-odd {
-  background: #e7e5e4;
+  background: #FCFCFC;
+}
+
+#timeline .vis-time-axis {
+  
 }
 
 #timeline .vis-time-axis .vis-grid.vis-minor {
@@ -63,7 +62,7 @@ styles <- "
 }
 
 #timeline .vis-time-axis .vis-grid.vis-major {
-  border-width: 2px;
+  border-width: 1px;
   border-color: Black;
 }"
 
@@ -116,6 +115,7 @@ ui <- fluidPage(
                   dateInput("addLDate", NULL, "2021-01-01"),
                   dateInput("addRDate", NULL, "2021-01-03"),
                   selectInput("addGroup", "Group:", c("EOSC-Life" = "EL", "EOS-Life + UEB Admin" = "ELUA", "UEB Admin" = "UA")),
+                  textInput("addLink", "Add Link", ""),
                   actionButton("addBtn", "Add")
               ),
               div(id = "interactiveActions",
@@ -186,8 +186,9 @@ observeEvent(y(), {
                         start = input$addLDate,
                         end = input$addRDate,
                         group = input$addGroup,
-                        className = input$addGroup,
-                        title = input$addTitle))
+                        className = ifelse(is.null(input$addRDate), 'milestones', input$addGroup),
+                        title = input$addTitle,
+                        docLink = input$addLink ))
   })
   observeEvent(input$fit, {
     fitWindow("timeline")
