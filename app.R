@@ -9,10 +9,23 @@ library(shinyjs)
 library(googledrive)
 library(googlesheets4)
 
-#Some helper code
+#Little helpers
 
 randomID <- function() {
   paste(sample(c(letters, LETTERS, 0:9), 16, replace = TRUE), collapse = "")
+}
+
+prettyDate <- function(d, mode) {
+  if (is.null(d)) return()
+  posix <- as.POSIXct(d, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+  corrected <- lubridate::with_tz(posix, tzone = Sys.timezone())
+  #else(mode == 'onlydate', format(corrected, "%Y-%m-%d %Z"), format(corrected, "%Y-%m-%d %H:%M:%OS %Z"))
+  if (mode=='onlydate') {
+    format(corrected, "%Y-%m-%d %Z")
+  } else{
+    format(corrected, "%Y-%m-%d %H:%M:%OS %Z")
+  }
+
 }
 
 #define CSS styles
@@ -33,6 +46,10 @@ styles <- "
   background: #FCFCFC;
   padding: 10px;
   margin-bottom: 20px;
+}
+
+#selectedInfo {
+  font-size: 10pt
 }
 
 #timeline {
@@ -68,39 +85,26 @@ styles <- "
 
 # Shiny UI
 ui <- fluidPage(
-  #titlePanel("Cross-Team Product Roadmap"),
-  
-  #sidebarLayout(
-    
-    #sidebarPanel(
-      #define input selector
-      #checkboxGroupInput("group", "Select Product Team(s):",
-       #                  c("Team 1" = "team_1",
-       #                    "Team 2" = "team_2",
-       #                    "Team 3" = "team_3",
-       #                    "Team 4" = "team_4",
-       #                    "Team 5" = "team_5",
-       #                    "Team 6" = "team_6"))
-    #),
-    
-    #mainPanel(
       
-      #set CSS style
-      tags$style(styles, type="text/css"),
+  #set CSS style
+  tags$style(styles, type="text/css"),
       
-      #output timeline
-      #timevisOutput("timeline")
-    #)
-  #)
 
   fluidRow(
         column(style="display: inline-block;vertical-align:bottom;",
           2,
           div(id = "saveActions",
                   class = "optionsSection",
-                  disabled(actionButton("save", "Save changes"))
-                  #actionButton("save", "Save changes")
-                  #actionButton("changed", "Changed!")
+                  tags$h4("Save (don't re-click quickly!):"),
+                  actionButton("save", "Save changes")
+          )
+        ),
+        column(style="display: inline-block;vertical-align:bottom;",
+          10,
+          div(id = "selectedInfo",
+                  class = "optionsSection",
+                  #tags$h5("Selected Item:"),
+                  tableOutput("selected_datatable")
           )
         )
   ),
@@ -115,7 +119,7 @@ ui <- fluidPage(
                   dateInput("addLDate", NULL, "2021-01-01"),
                   dateInput("addRDate", NULL, "2021-01-03"),
                   selectInput("addGroup", "Group:", c("EOSC-Life" = "EL", "EOS-Life + UEB Admin" = "ELUA", "UEB Admin" = "UA")),
-                  textInput("addLink", "Add Link", ""),
+                  textInput("addLink", "Add Link"),
                   actionButton("addBtn", "Add")
               ),
               div(id = "interactiveActions",
@@ -132,7 +136,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  #get data
+  #get data with readxl
   #ranged <- read_excel(path ="timelineUEB_1612264248.xlsx",
                          #sheet = "Ranged")
   #milestones <- read_excel(path = "timelineUEB_1612264248.xlsx",
@@ -157,13 +161,6 @@ server <- function(input, output, session) {
 
   
   data = rbind(ranged, milestones)
-
-  y <- reactiveVal(data)
-observeEvent(y(), {
-  enable("save")
-})
-
-
   
   #create timeline output
   output$timeline <- renderTimevis({
@@ -186,10 +183,26 @@ observeEvent(y(), {
                         start = input$addLDate,
                         end = input$addRDate,
                         group = input$addGroup,
-                        className = ifelse(is.null(input$addRDate), 'milestones', input$addGroup),
+                        className = ifelse(input$addRDate=='', 'milestones', input$addGroup), #non functional by now
                         title = input$addTitle,
-                        docLink = input$addLink ))
+                        docLink = input$addLink))
   })
+
+  #Fill the selected item table
+
+  output$selected_datatable <- renderTable({
+    selected_entry <- input$timeline_data[which(input$timeline_data$id == input$timeline_selected), ]
+    data <- selected_entry[, c("title", "content", "start", "end", "docLink")]
+    data$start <- prettyDate(data$start, 'onlydate')
+    if (!is.null(data$end)) {
+      data$end <- prettyDate(data$end, 'onlydate')
+    }
+    data$docLink <- ifelse(data$docLink == '', '', 
+                           paste0('<A href=',data$docLink,' target="_blank" rel="noopener noreferrer">Go</A>'))
+    data
+  }, sanitize.text.function = function(x) x)
+
+
   observeEvent(input$fit, {
     fitWindow("timeline")
   })
@@ -201,7 +214,7 @@ observeEvent(y(), {
     milestones = input$timeline_data[which(input$timeline_data$className == "milestones"), ]
     ranged = input$timeline_data[which(input$timeline_data$className != "milestones"), ]
     
-    #Write using xlsx
+    #Write using xlsx, BUGGY!!!!!
     #xlsfname <- paste0('timelineUEB_',as.integer(Sys.time()),".xlsx")
     #oldOpt <- options()
     #options(xlsx.date.format="yyyy-MMM-dd")
