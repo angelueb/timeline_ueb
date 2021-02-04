@@ -1,4 +1,11 @@
+#First attemp of Shiny timeline app. Quick and dirty as they come.
 
+#TODO:
+# - Auto saving (decide on eny changed, timed, etc. It will depend on the storage backend).
+# - Reactively edition of selected item (on the existing space of the selected item table or any other better place).
+# - Fix/add milestones, currently doesn't work but that's not breaking any other fucntionality.
+# - Field validation
+# - ... 
 
 #libraries ----
 library(timevis)  # timeline visualization
@@ -86,10 +93,10 @@ styles <- "
 # Shiny UI
 ui <- fluidPage(
       
-  #set CSS style
+  #Set CSS style
   tags$style(styles, type="text/css"),
       
-
+  #Fluid rows and columns based interface (quick and dirty)
   fluidRow(
         column(style="display: inline-block;vertical-align:bottom;",
           2,
@@ -151,21 +158,17 @@ server <- function(input, output, session) {
   sheets_auth(token = drive_token())
 
 
-  #goooglesheets4 inputs
+  #goooglesheets4 data reading and arrangement
   ss <- '1zwX6k60yTzolEqOhD61384TAERmqTy1BLRLNzpGksmU'
 
   ranged <- read_sheet(ss, sheet = 'Ranged')
   milestones <- read_sheet(ss, sheet = 'Milestones')
   groups <- read_sheet(ss, sheet = 'Groups')
   
-
-  
   data = rbind(ranged, milestones)
   
-  #create timeline output
+  #Create timeline output
   output$timeline <- renderTimevis({
-    #timevis(data = subset(data, data$group %in% input$group | data$group == "milestones"), 
-            #groups = subset(groups, groups$id %in% input$group | groups$id == "milestones"))
     config <- list(
       editable = TRUE,
       #multiselect = TRUE
@@ -183,26 +186,26 @@ server <- function(input, output, session) {
                         start = input$addLDate,
                         end = input$addRDate,
                         group = input$addGroup,
-                        className = ifelse(input$addRDate=='', 'milestones', input$addGroup), #non functional by now
+                        className = ifelse(as.character(input$addRDate) == '', 'milestones', input$addGroup), #not working
                         title = input$addTitle,
                         docLink = input$addLink))
   })
 
   #Fill the selected item table
-
   output$selected_datatable <- renderTable({
     selected_entry <- input$timeline_data[which(input$timeline_data$id == input$timeline_selected), ]
-    data <- selected_entry[, c("title", "content", "start", "end", "docLink")]
+    data <- selected_entry[, c("title", "content", "start", "end", "group", "docLink")]
     data$start <- prettyDate(data$start, 'onlydate')
     if (!is.null(data$end)) {
       data$end <- prettyDate(data$end, 'onlydate')
     }
+    data$group <- if (identical(data$group, 'EL')) 'EOSC-Life' else if (identical(data$group, 'ELUA')) 'EOSC-Life + UEB Admin' else if (identical(data$group, 'UA')) 'UEB Admin'
     data$docLink <- ifelse(data$docLink == '', '', 
                            paste0('<A href=',data$docLink,' target="_blank" rel="noopener noreferrer">Go</A>'))
     data
   }, sanitize.text.function = function(x) x)
 
-
+  #More actions' events
   observeEvent(input$fit, {
     fitWindow("timeline")
   })
@@ -210,6 +213,7 @@ server <- function(input, output, session) {
     centerTime("timeline", format(Sys.Date(), format="%Y-%m-%d"))
   })
 
+  #Saving to Google Sheet
   observeEvent(input$save, {
     milestones = input$timeline_data[which(input$timeline_data$className == "milestones"), ]
     ranged = input$timeline_data[which(input$timeline_data$className != "milestones"), ]
